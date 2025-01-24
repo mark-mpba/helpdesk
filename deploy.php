@@ -14,6 +14,10 @@ add('shared_files', ['.env']);                                                  
 add('shared_dirs', ['storage', 'vendor', 'node_modules','bootstrap/cache']);      // Shared dirs between deploys
 add('writable_dirs', ['storage', 'vendor', 'node_modules','bootstrap/cache']);    // Writable dirs by web server
 
+set('bin/php', function () {
+    return '/usr/bin/php8.2';
+});
+
 // Tasks
 
 
