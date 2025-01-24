@@ -1,0 +1,20 @@
+<div class="ml-1 mr-1">
+    <table class="ticket-table table table-striped dt-responsive nowrap" style="width:100%">
+        <thead>
+        <tr>
+            <td>{{ trans('ticket::lang.table-id') }}</td>
+            <td>{{ trans('ticket::lang.table-subject') }}</td>
+            <td>{{ trans('ticket::lang.table-project') }}</td>
+            <td>{{ trans('ticket::lang.table-status') }}</td>
+            <td>{{ trans('ticket::lang.table-last-updated') }}</td>
+            <td>{{ trans('ticket::lang.table-agent') }}</td>
+            @if( $u->isAgent() || $u->isAdmin() )
+                <td>{{ trans('ticket::lang.table-priority') }}</td>
+                <td>{{ trans('ticket::lang.table-owner') }}</td>
+                <td>{{ trans('ticket::lang.table-category') }}</td>
+            @endif
+        </tr>
+        </thead>
+    </table>
+
+</div>

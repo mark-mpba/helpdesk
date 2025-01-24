@@ -1,0 +1,38 @@
+{
+    "name": "mpba/laravel-db2",
+    "description": "laravel-db2 is a simple DB2 service provider for Laravel. It provides DB2 Connection by extending the Illuminate Database component of the laravel framework.",
+    "keywords": [
+        "laravel",
+        "DB2",
+        "Database",
+        "PDO",
+        "ODBC"
+    ],
+    "version": "1.0.0",
+    "license": "MIT",
+    "authors": [
+    {
+        "name": "Mark Gregory",
+        "role": "Developer"
+    }
+    ],
+    "require": {
+        "php": "^7.3|^8.0",
+        "illuminate/database": "^8.0"
+    },
+    "require-dev": {
+    },
+    "autoload": {
+    "psr-4": {
+        "mpba\\DB2\\": "src/"
+    }
+    },
+    "minimum-stability": "dev",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "mpba\\DB2\\DB2ServiceProvider"
+            ]
+        }
+    }
+}

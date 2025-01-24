@@ -1,0 +1,14 @@
+{
+    "name": "Timesheets",
+    "alias": "timesheets",
+    "description": "",
+    "version" : "1.0.0",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Timesheets\\Providers\\TimesheetsServiceProvider"
+    ],
+    "aliases": {},
+    "files": [],
+    "requires": []
+}

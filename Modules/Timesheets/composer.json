@@ -1,0 +1,23 @@
+{
+    "name": "mpba/timesheets",
+    "description": "timesheet solution",
+    "authors": [
+        {
+            "name": "Mark Gregory",
+            "email": "mark.gregory@mpba.co.uk"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Timesheets\\": ""
+        }
+    }
+}
