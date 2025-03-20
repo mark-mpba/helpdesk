@@ -123,6 +123,8 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
+    'disable_registration' => env('DISABLE_REGISTER', true),
+
     /*
     |--------------------------------------------------------------------------
     | Autoloaded Service Providers

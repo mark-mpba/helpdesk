@@ -20,12 +20,17 @@ Route::get('/', function () {
         return view('welcome');
     } else {
         $admin_route = Setting::grab('admin_route');
-
         return redirect(route($admin_route.'.dashboard.indicator'));
     }
 });
 
-Auth::routes();
+
+   if (config('app.disable_registration')){
+       Auth::routes( ['login']);
+   } else {
+       Auth::routes();
+   }
+
 
 Route::get('/home', function () {
     $admin_route = Setting::grab('admin_route');
