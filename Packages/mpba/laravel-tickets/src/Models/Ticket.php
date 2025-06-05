@@ -10,8 +10,6 @@ use Jenssegers\Date\Date;
 use mpba\LaravelArchivable\Traits\Archivable;
 use mpba\Tickets\Traits\ContentEllipse;
 use mpba\Tickets\Traits\Purifiable;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Ticket extends Model
 {
@@ -19,11 +17,10 @@ class Ticket extends Model
     use Purifiable;
     use Archivable;
 
-    use InteractsWithMedia;
 
     protected $table = 'tickets';
 
-    protected $dates = ['completed_at','archived_at'];
+    protected $dates = ['completed_at', 'archived_at'];
 
     /**
      * List of completed tickets.
@@ -32,12 +29,12 @@ class Ticket extends Model
      */
     public function hasComments()
     {
-        return (bool) count($this->comments);
+        return (bool)count($this->comments);
     }
 
     public function isComplete()
     {
-        return (bool) $this->completed_at;
+        return (bool)$this->completed_at;
     }
 
 
@@ -101,7 +98,6 @@ class Ticket extends Model
     {
         return $this->belongsTo('mpba\Tickets\Models\Category', 'category_id');
     }
-
 
 
     /**
@@ -172,7 +168,7 @@ class Ticket extends Model
             return Date::createFromTimestamp($value);
         } elseif (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value)) {
             return Date::createFromFormat('Y-m-d', $value)->startOfDay();
-        } elseif (! $value instanceof \DateTimeInterface) {
+        } elseif (!$value instanceof \DateTimeInterface) {
             $format = $this->getDateFormat();
 
             return Date::createFromFormat($format, $value);
@@ -224,9 +220,11 @@ class Ticket extends Model
     public function autoSelectAgent()
     {
         $cat_id = $this->category_id;
-        $agents = Category::find($cat_id)->agents()->with(['agentOpenTickets' => function ($query) {
-            $query->addSelect(['id', 'agent_id']);
-        }])->get();
+        $agents = Category::find($cat_id)->agents()->with([
+            'agentOpenTickets' => function ($query) {
+                $query->addSelect(['id', 'agent_id']);
+            }
+        ])->get();
         $count = 0;
         $lowest_tickets = 1000000;
         // If no agent selected, select the admin
@@ -249,7 +247,6 @@ class Ticket extends Model
 
         return $this;
     }
-
 
 
 }
