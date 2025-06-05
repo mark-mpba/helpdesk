@@ -1,3 +1,4 @@
+{{--
 @extends('layouts.app')
 
 @section('page', __('Register'))
@@ -77,3 +78,4 @@
     </div>
 </div>
 @endsection
+--}}
