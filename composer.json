@@ -14,7 +14,7 @@
         "mpba/laravel-archivable": "*",
         "mpba/laravel-modules": "*",
         "mpba/laravel-tickets": "*",
-        "predis/predis": "^2.2",
+        "predis/predis": "^3.0",
         "spatie/laravel-medialibrary": "^10.15"
     },
     "require-dev": {
