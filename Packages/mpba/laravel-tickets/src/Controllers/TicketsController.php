@@ -100,7 +100,7 @@ class TicketsController extends Controller
         // in previous laravel-datatables versions escaping columns wasn't default.
 
         if (LaravelVersion::min('5.4')) {
-            $collection->rawColumns(['subject','status', 'priority', 'category', 'agent']);
+            $collection->rawColumns(['subject', 'status', 'priority', 'category', 'agent']);
         }
 
         return $collection->make(true);
@@ -110,9 +110,9 @@ class TicketsController extends Controller
     {
         $collection->editColumn('subject', function ($ticket) {
             //return substr($ticket->subject,0,45);
-            return (string) link_to_route(
-                Setting::grab('main_route').'.show',
-                substr($ticket->subject,0,45),
+            return (string)link_to_route(
+                Setting::grab('main_route') . '.show',
+                substr($ticket->subject, 0, 45),
                 $ticket->id
             );
         });
@@ -156,7 +156,7 @@ class TicketsController extends Controller
     {
         $complete = false;
         $archived = false;
-        return view('ticket::index', compact('complete','archived'));
+        return view('ticket::index', compact('complete', 'archived'));
     }
 
     /**
@@ -168,7 +168,7 @@ class TicketsController extends Controller
     {
         $complete = true;
         $archived = false;
-        return view('ticket::index', compact('complete','archived'));
+        return view('ticket::index', compact('complete', 'archived'));
     }
 
     /**
@@ -181,7 +181,7 @@ class TicketsController extends Controller
         $archived = true;
         $complete = false;
 
-        return view('ticket::index', compact('complete','archived'));
+        return view('ticket::index', compact('complete', 'archived'));
     }
 
     /**
@@ -215,14 +215,14 @@ class TicketsController extends Controller
             return [
                 $priorities->pluck('name', 'id'),
                 $categories->pluck('name', 'id'),
-                $projects->pluck('title','id'),
+                $projects->pluck('title', 'id'),
                 $statuses->pluck('name', 'id')
             ];
         } else {
             return [
                 $priorities->lists('name', 'id'),
                 $categories->lists('name', 'id'),
-                $projects->pluck('title','id'),
+                $projects->pluck('title', 'id'),
                 $statuses->lists('name', 'id'),
             ];
         }
@@ -233,18 +233,18 @@ class TicketsController extends Controller
      *
      * @return View
      */
-    public function create() :View
+    public function create(): View
     {
-        [$priorities, $categories,$projects] = $this->PCS();
+        [$priorities, $categories, $projects] = $this->PCS();
 
         return view('ticket::tickets.create',
             [
-            'priorities'    => $priorities,
-            'categories'    => $categories,
-            'projects'      => $projects
+                'priorities' => $priorities,
+                'categories' => $categories,
+                'projects' => $projects
             ]
         );
-            //compact('priorities', 'categories','projects'));
+        //compact('priorities', 'categories','projects'));
     }
 
     /**
@@ -265,26 +265,27 @@ class TicketsController extends Controller
         $ticket->reference = $request->reference;
         $ticket->status_id = Setting::grab('default_status_id');
         $ticket->user_id = auth()->user()->id;
-        $ticket->autoSelectAgent();
 
+        //$ticket->autoSelectAgent();
+        $ticket->agent_id = auth()->user()->id;
         $ticket->save();
 
         session()->flash('status', trans('ticket::lang.the-ticket-has-been-created'));
 
-        return redirect()->route(Setting::grab('main_route').'.index');
+        return redirect()->route(Setting::grab('main_route') . '.index');
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Response
      */
     public function show($id)
     {
         $ticket = $this->tickets->findOrFail($id);
 
-        [$priority_lists, $category_lists, $project_lists,$status_lists] = $this->PCS();
+        [$priority_lists, $category_lists, $project_lists, $status_lists] = $this->PCS();
 
         $close_perm = $this->permToClose($id);
         $reopen_perm = $this->permToReopen($id);
@@ -299,14 +300,15 @@ class TicketsController extends Controller
         $comments = $ticket->comments()->paginate(Setting::grab('paginate_items'));
 
         return view('ticket::tickets.show',
-            compact('ticket', 'project_lists','status_lists', 'priority_lists', 'category_lists', 'agent_lists', 'comments',
+            compact('ticket', 'project_lists', 'status_lists', 'priority_lists', 'category_lists', 'agent_lists',
+                'comments',
                 'close_perm', 'reopen_perm'));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Response
      */
     public function update(Request $request, $id)
@@ -340,13 +342,13 @@ class TicketsController extends Controller
 
         session()->flash('status', trans('ticket::lang.the-ticket-has-been-modified'));
 
-        return redirect()->route(Setting::grab('main_route').'.show', $id);
+        return redirect()->route(Setting::grab('main_route') . '.show', $id);
     }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Response
      */
     public function destroy($id)
@@ -357,13 +359,13 @@ class TicketsController extends Controller
 
         session()->flash('status', trans('ticket::projects.has-been-deleted', ['name' => $subject]));
 
-        return redirect()->route(Setting::grab('main_route').'.index');
+        return redirect()->route(Setting::grab('main_route') . '.index');
     }
 
     /**
      * Mark ticket as complete.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Response
      */
     public function complete($id)
@@ -381,17 +383,17 @@ class TicketsController extends Controller
 
             session()->flash('status', trans('ticket::lang.the-ticket-has-been-completed', ['name' => $subject]));
 
-            return redirect()->route(Setting::grab('main_route').'.index');
+            return redirect()->route(Setting::grab('main_route') . '.index');
         }
 
-        return redirect()->route(Setting::grab('main_route').'.index')
+        return redirect()->route(Setting::grab('main_route') . '.index')
             ->with('warning', trans('ticket::lang.you-are-not-permitted-to-do-this'));
     }
 
     /**
      * Reopen ticket from complete status.
      *
-     * @param  int  $id
+     * @param int $id
      * @return Response
      */
     public function reopen($id)
@@ -409,10 +411,10 @@ class TicketsController extends Controller
 
             session()->flash('status', trans('ticket::lang.the-ticket-has-been-reopened', ['name' => $subject]));
 
-            return redirect()->route(Setting::grab('main_route').'.index');
+            return redirect()->route(Setting::grab('main_route') . '.index');
         }
 
-        return redirect()->route(Setting::grab('main_route').'.index')
+        return redirect()->route(Setting::grab('main_route') . '.index')
             ->with('warning', trans('ticket::lang.you-are-not-permitted-to-do-this'));
     }
 
@@ -429,7 +431,7 @@ class TicketsController extends Controller
         $select = '<select class="form-control" id="agent_id" name="agent_id">';
         foreach ($agents as $id => $name) {
             $selected = ($id == $selected_Agent) ? 'selected' : '';
-            $select .= '<option value="'.$id.'" '.$selected.'>'.$name.'</option>';
+            $select .= '<option value="' . $id . '" ' . $selected . '>' . $name . '</option>';
         }
         $select .= '</select>';
 
@@ -476,7 +478,7 @@ class TicketsController extends Controller
     /**
      * Calculate average closing period of days per category for number of months.
      *
-     * @param  int  $period
+     * @param int $period
      * @return \Illuminate\Database\Eloquent\Collection|static[]
      */
     public function monthlyPerfomance($period = 2)
@@ -496,7 +498,8 @@ class TicketsController extends Controller
             $to->endOfMonth();
             $records['interval'][$from->format('F Y')] = [];
             foreach ($categories as $cat) {
-                $records['interval'][$from->format('F Y')][] = round($this->intervalPerformance($from, $to, $cat->id), 1);
+                $records['interval'][$from->format('F Y')][] = round($this->intervalPerformance($from, $to, $cat->id),
+                    1);
             }
         }
 
@@ -506,7 +509,7 @@ class TicketsController extends Controller
     /**
      * Calculate the date length it took to solve a ticket.
      *
-     * @param  Ticket  $ticket
+     * @param Ticket $ticket
      * @return int|false
      */
     public function ticketPerformance($ticket)
