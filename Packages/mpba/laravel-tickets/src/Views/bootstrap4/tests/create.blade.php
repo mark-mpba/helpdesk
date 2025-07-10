@@ -37,7 +37,7 @@
     <div class="form-group row">
         {!! CollectiveForm::label('actual','Actual Results', ['class' => 'col-lg-2 col-form-label']) !!}
         <div class="col-8">
-            {!! CollectiveForm::textarea('actual', null, ['class' => 'form-control', 'required' => 'required']) !!}
+            {!! CollectiveForm::textarea('actual', null, ['class' => 'form-control']) !!}
         </div>
     </div>
 
