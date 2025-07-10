@@ -1,4 +1,4 @@
-<table class="ticket-table table table-striped table-bordered" style="width:100%">
+<table class="test-table table table-striped table-bordered" style="width:100%">
     <thead>
     <tr>
         <td>{{ trans('ticket::lang.table-id') }}</td>
