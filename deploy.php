@@ -23,7 +23,7 @@ set('bin/php', function () {
 
 // Hosts
 
-host('prod')
+host('main')
     ->set('hostname', 'www.absdev.net')
     ->set('remote_user', 'mag')
     ->set('identityFile', '~/.ssh/id_rsa')
