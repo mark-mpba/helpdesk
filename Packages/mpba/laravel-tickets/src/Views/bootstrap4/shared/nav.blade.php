@@ -16,7 +16,7 @@
                 </span>
             </a>
         </li>
-        <li style="margin-left: 5px;" role="presentation" class="nav-item">
+        <li style="margin-left: 5px;" role="presentation" class="nav-item d-none">
             <a class="nav-link {{ request()->is('tests*')?'active':'' }} "
                href="{{ route('tests.index') }}">System Test Scripts
                 <span class="badge badge-pill badge-danger ">
