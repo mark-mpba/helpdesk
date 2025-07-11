@@ -22,10 +22,10 @@ set('bin/php', function () {
 // Hosts
 
 host('main')
-    ->set('hostname', 'www.absdev.net')
+    ->set('hostname', 'absdev.net')
     ->set('remote_user', 'mag')
     ->set('identityFile', '~/.ssh/id_rsa')
-    ->set('deploy_path', '/var/www/helpdesk_old/prod')
+    ->set('deploy_path', '/var/www/helpdesk')
     ->set('writable_use_sudo', false)
     ->set('use_relative_symlink', true)
     ->set('http_user', 'mag')
