@@ -18,8 +18,6 @@ set('bin/php', function () {
     return '/usr/bin/php8.2';
 });
 
-// Tasks
-
 
 // Hosts
 
@@ -27,7 +25,7 @@ host('main')
     ->set('hostname', 'www.absdev.net')
     ->set('remote_user', 'mag')
     ->set('identityFile', '~/.ssh/id_rsa')
-    ->set('deploy_path', '/var/www/helpdesk/prod')
+    ->set('deploy_path', '/var/www/helpdesk_old/prod')
     ->set('writable_use_sudo', false)
     ->set('use_relative_symlink', true)
     ->set('http_user', 'mag')

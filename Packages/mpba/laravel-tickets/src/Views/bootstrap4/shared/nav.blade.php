@@ -16,20 +16,20 @@
                 </span>
             </a>
         </li>
-
-        <li style="margin-left: 5px;" role="presentation" class="nav-item ">
-            <a class="nav-link {{ request()->is('tests*')?'active':'' }} "
-               href="{{ route('tests.index') }}">System Test Scripts
-                <span class="badge badge-pill badge-danger ">
-                     <?php
-                     if ($u->isAdmin()) {
-                         echo mpba\Tickets\Models\Test::all()->count();
-                     }
-                     ?>
-                </span>
-            </a>
-        </li>
-
+        {{--
+                <li style="margin-left: 5px;" role="presentation" class="nav-item ">
+                    <a class="nav-link {{ request()->is('tests*')?'active':'' }} "
+                       href="{{ route('tests.index') }}">System Test Scripts
+                        <span class="badge badge-pill badge-danger ">
+                             <?php
+                             if ($u->isAdmin()) {
+                                 echo mpba\Tickets\Models\Test::all()->count();
+                             }
+                             ?>
+                        </span>
+                    </a>
+                </li>
+        --}}
         <li role="presentation" class="nav-item">
             <a class="nav-link {!! $tools->fullUrlIs(route(mpba\tickets\Models\Setting::grab('main_route') . '-complete')) ? "active" : "" !!}"
                href="{{ route(mpba\tickets\Models\Setting::grab('main_route') . '-complete') }}">{{ trans('ticket::nav.completed-tickets') }}
