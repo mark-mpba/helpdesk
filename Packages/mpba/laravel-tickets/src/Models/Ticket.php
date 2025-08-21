@@ -10,17 +10,26 @@ use Jenssegers\Date\Date;
 use mpba\LaravelArchivable\Traits\Archivable;
 use mpba\Tickets\Traits\ContentEllipse;
 use mpba\Tickets\Traits\Purifiable;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Ticket extends Model
+
+class Ticket extends Model implements HasMedia
 {
     use ContentEllipse;
     use Purifiable;
     use Archivable;
 
+    use InteractsWithMedia;
 
     protected $table = 'tickets';
 
     protected $dates = ['completed_at', 'archived_at'];
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('attachments');
+    }
 
     /**
      * List of completed tickets.
@@ -247,6 +256,4 @@ class Ticket extends Model
 
         return $this;
     }
-
-
 }

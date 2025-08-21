@@ -18,6 +18,7 @@ use mpba\Tickets\Requests\TicketRequest;
 
 class TicketsController extends Controller
 {
+
     protected $tickets;
 
     protected $agent;
@@ -235,6 +236,7 @@ class TicketsController extends Controller
      */
     public function create(): View
     {
+
         [$priorities, $categories, $projects] = $this->PCS();
 
         return view('ticket::tickets.create',
@@ -246,6 +248,7 @@ class TicketsController extends Controller
         );
         //compact('priorities', 'categories','projects'));
     }
+
 
     /**
      * Store a newly created ticket and auto assign an agent for it.
@@ -268,6 +271,14 @@ class TicketsController extends Controller
 
         //$ticket->autoSelectAgent();
         $ticket->agent_id = auth()->user()->id;
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $ticket->addMedia($file)->toMediaCollection('attachments');
+            }
+        }
+
+
         $ticket->save();
 
         session()->flash('status', trans('ticket::lang.the-ticket-has-been-created'));
@@ -336,6 +347,12 @@ class TicketsController extends Controller
             $ticket->autoSelectAgent();
         } else {
             $ticket->agent_id = $request->input('agent_id');
+        }
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $ticket->addMedia($file)->toMediaCollection('attachments');
+            }
         }
 
         $ticket->save();
