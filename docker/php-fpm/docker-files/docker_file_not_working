@@ -1,0 +1,169 @@
+# syntax=docker/dockerfile:1.7
+
+# ===================================================================================
+# Dockerfile — optimized dev image (Alpine) with optional Xdebug + fast init
+# ===================================================================================
+
+FROM php:8.1-fpm-alpine AS base
+LABEL maintainer="Mark Gregory <mark.gregory@pba.co.uk>"
+
+ENV COMPOSER_MEMORY_LIMIT=-1 \
+    COMPOSER_ALLOW_SUPERUSER=1
+
+# Override at build: --build-arg PUID=501 --build-arg PGID=1000
+ARG PUID=1000
+ARG PGID=1000
+
+# Create sail user/group
+RUN set -eux; \
+  if awk -F: -v gid="${PGID}" '$3==gid{f=1} END{exit !(f)}' /etc/group; then \
+    addgroup -S sail; \
+  else \
+    addgroup -g "${PGID}" sail; \
+  fi; \
+  if awk -F: -v uid="${PUID}" '$3==uid{f=1} END{exit !(f)}' /etc/passwd; then \
+    adduser -D -s /bin/sh -G sail sail || true; \
+  else \
+    adduser -D -s /bin/sh -u "${PUID}" -G sail sail; \
+  fi; \
+  mkdir -p /home/sail && chown -R "${PUID}":sail /home/sail
+
+ENV HOME=/home/sail
+
+# Runtime libs only
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache \
+      tzdata bash unzip git openssh shadow supervisor \
+      icu-libs libzip \
+      libpng libjpeg-turbo freetype \
+      libxml2 gmp
+
+# Ensure app dir exists and owned by sail
+RUN mkdir -p /var/www/html && chown -R sail:sail /var/www/html
+
+# INIs (repo)
+COPY docker/php-fpm/opcache.ini  /usr/local/etc/php/conf.d/zz-opcache.ini
+COPY docker/php-fpm/laravel.ini  /usr/local/etc/php/conf.d/zz-laravel.ini
+
+# ---------- Build: compile PHP extensions ----------
+FROM base AS build
+
+# Build args
+ARG INSTALL_XDEBUG=0
+
+RUN --mount=type=cache,target=/var/cache/apk \
+    set -eux; \
+    apk add --no-cache --virtual .build-deps \
+      $PHPIZE_DEPS build-base autoconf pkgconf re2c linux-headers \
+      icu-dev libzip-dev zlib-dev \
+      libpng-dev libjpeg-turbo-dev freetype-dev \
+      libxml2-dev gmp-dev; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-install -j"$(nproc)" \
+      gd exif pcntl zip pdo_mysql bcmath intl gmp opcache; \
+    pecl install redis; \
+    docker-php-ext-enable redis; \
+    if [ "${INSTALL_XDEBUG}" = "1" ]; then pecl install xdebug; fi; \
+    apk del .build-deps
+
+# ---------- runtime-dev: FINAL ----------
+FROM base AS runtime-dev
+WORKDIR /var/www/html
+
+# Bring compiled extensions + ini stubs
+COPY --from=build /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=build /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+
+# Composer (official image)
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+# Git safe dirs for local packages
+RUN git config --global --add safe.directory /var/www/html || true \
+ && git config --global --add safe.directory /var/www/html/packages || true
+
+# Xdebug: only if present (INSTALL_XDEBUG=1 in build)
+# Writes config that points at xdebug.so only when it exists.
+RUN set -eux; \
+  EXTDIR="$(php -r "echo ini_get('extension_dir');")"; \
+  if [ -f "${EXTDIR}/xdebug.so" ]; then \
+    { \
+      echo "zend_extension=${EXTDIR}/xdebug.so"; \
+      echo 'xdebug.mode=${XDEBUG_MODE:-off}'; \
+      echo 'xdebug.discover_client_host=0'; \
+      echo 'xdebug.client_host=host.docker.internal'; \
+      echo 'xdebug.client_port=9003'; \
+      echo 'xdebug.start_with_request=yes'; \
+    } > /usr/local/etc/php/conf.d/zz-xdebug.ini; \
+  else \
+    rm -f /usr/local/etc/php/conf.d/*xdebug*.ini || true; \
+  fi
+
+# Make PHP-FPM pool run as 'sail'
+RUN sed -i -E 's/^(user|group)\s*=.*/\1 = sail/g' /usr/local/etc/php-fpm.d/www.conf \
+ && sed -i -E 's@^;?listen\.owner\s*=.*@listen.owner = sail@g' /usr/local/etc/php-fpm.d/www.conf \
+ && sed -i -E 's@^;?listen\.group\s*=.*@listen.group = sail@g' /usr/local/etc/php-fpm.d/www.conf
+
+# Supervisor config (php-fpm + queue)
+RUN mkdir -p /etc/supervisor/conf.d /var/log/supervisor \
+ && printf "%s\n" \
+"[supervisord]" \
+"nodaemon=true" \
+"logfile=/var/log/supervisor/supervisord.log" \
+"pidfile=/var/run/supervisord.pid" \
+"" \
+"[include]" \
+"files=/etc/supervisor/conf.d/*.conf" \
+ > /etc/supervisord.conf \
+ && printf "%s\n" \
+"[program:php-fpm]" \
+"command=php-fpm --nodaemonize" \
+"autostart=true" \
+"autorestart=true" \
+"stopsignal=QUIT" \
+"redirect_stderr=true" \
+"stdout_logfile=/var/log/supervisor/php-fpm.log" \
+ > /etc/supervisor/conf.d/php-fpm.conf \
+ && printf "%s\n" \
+"[program:laravel-queue]" \
+"directory=/var/www/html" \
+"command=php artisan queue:work --verbose --tries=3 --timeout=90" \
+"autostart=true" \
+"autorestart=true" \
+"user=sail" \
+"numprocs=1" \
+"redirect_stderr=true" \
+"stdout_logfile=/var/log/supervisor/worker.log" \
+ > /etc/supervisor/conf.d/laravel-worker.conf \
+ && chown -R sail:sail /var/log/supervisor
+
+# Fast init script:
+# - DO NOT recursively chown/chmod the whole repo (slow on macOS bind mounts)
+# - Only touch storage + bootstrap/cache (which should be named volumes)
+RUN cat > /usr/local/bin/laravel-init <<'EOF' \
+ && chmod +x /usr/local/bin/laravel-init
+#!/bin/sh
+set -eu
+
+cd /var/www/html || exit 1
+
+# Create only what Laravel needs
+mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views
+
+# Avoid recursive chown across bind mounts; this is safe/fast when these are named volumes
+chmod -R ug+rwX storage bootstrap/cache >/dev/null 2>&1 || true
+
+# Optional: first-run vendor install (commented out for speed/predictability)
+# Run manually when needed:
+#   docker compose exec laravel.test composer install
+# if [ ! -f vendor/autoload.php ] && [ -f composer.json ]; then
+#   echo "📦 vendor empty → composer install (dev)…"
+#   composer install --no-interaction --prefer-dist
+# fi
+
+exec "$@"
+EOF
+
+ENTRYPOINT ["/usr/local/bin/laravel-init"]
+CMD ["supervisord","-c","/etc/supervisord.conf"]
+
+EXPOSE 9000 9003

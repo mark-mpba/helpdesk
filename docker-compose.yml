@@ -1,0 +1,123 @@
+services:
+  laravel.test:
+    platform: "linux/arm64/v8"
+    build:
+      context: ../../..
+      dockerfile: ../../php-fpm/Dockerfile
+      target: runtime-dev
+      args:
+        # Use your macOS UID/GID so files on the bind mount are owned by you
+        # On macOS: id -u (often 501) / id -g
+        PUID: 501
+        PGID: 1000
+    container_name: helpdesk-php
+    working_dir: /var/www/html
+    user: "501:20"
+    volumes:
+      - ./:/var/www/html:delegated
+    environment:
+      PHP_OPCACHE_ENABLE: "${PHP_OPCACHE_ENABLE}"
+      PHP_OPCACHE_MEMORY: "${PHP_OPCACHE_MEMORY}"
+      PHP_FPM_MAX_CHILDREN: "${PHP_FPM_MAX_CHILDREN}"
+
+      XDEBUG_MODE: "${XDEBUG_MODE}"
+      XDEBUG_START_WITH_REQUEST: "yes"
+      XDEBUG_IDEKEY: "PHPSTORM"
+      XDEBUG_CLIENT_HOST: "host.docker.internal"
+      XDEBUG_CLIENT_PORT: "9003"
+      XDEBUG_DISCOVER_CLIENT_HOST: "0"
+      XDEBUG_LOG_LEVEL: "7"
+
+      QUEUE_CONNECTION: "redis"
+      VITE_HOST: "0.0.0.0"
+      VITE_PORT: "5173"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "9000"
+      - "9003"
+    networks:
+      web:
+        aliases: [ laravel-php, medidev.vm, laravel.test, api.medidev.vm, gateway ]
+    command: >
+      sh -lc '
+        set -e
+        mkdir -p bootstrap/cache storage/framework/{cache,sessions,views};
+        chown -R www-data:www-data storage bootstrap || true;
+        chmod -R ug+rwX storage bootstrap || true;
+
+        if [ ! -f vendor/autoload.php ] && [ -f composer.json ]; then
+          echo "vendor/ empty → running composer install (dev)…";
+          composer install --no-interaction --prefer-dist || true;
+        fi
+        # Start FPM (foreground) and queue worker together
+                php-fpm -F &
+                php artisan queue:work --verbose --tries=3 --timeout=90
+      '
+  nginx:
+    platform: "linux/arm64/v8"
+    image: nginx:alpine
+    container_name: laravel-nginx
+    depends_on: [ laravel.test ]
+    volumes:
+      - ./:/var/www/html:delegated
+      - ./docker/nginx/sites/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/logs:/var/log/nginx
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      web:
+        aliases:
+          - medidev.vm
+          - nginx
+          - gateway
+          - api.medidev.vm
+  mysql:
+    platform: "linux/arm64/v8"
+    build:
+      context: ../../..
+      dockerfile: ../../mysql/Dockerfile
+    container_name: laravel-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "987400Kmh"
+      MYSQL_DATABASE: "AAMEDIUK"
+      MYSQL_LOG_CONSOLE: "false"
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql/
+    networks: [ web ]
+  redis:
+    platform: "linux/arm64/v8"
+    image: redis:alpine
+    container_name: laravel-redis
+    command: [ "redis-server", "--save", "", "--appendonly", "no", "--loglevel", "warning" ]
+    ports:
+      - "6379:6379"
+    networks: [ web ]
+  mailhog:
+    platform: "linux/arm64/v8"
+    image: axllent/mailpit:latest
+    container_name: laravel-mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - web
+
+
+networks:
+  web:
+    driver: bridge
+
+volumes:
+  vendor:
+  storage:
+  cache:
+  node_modules:
+  pnpm_store:
+  dbdata:
+  opt_in:

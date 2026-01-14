@@ -42,6 +42,9 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
         ],
+        'mailersend' => [
+          'transport' => 'mailersend',
+        ],
 
         'ses' => [
             'transport' => 'ses',
@@ -96,5 +99,10 @@ return [
             resource_path('views/vendor/mail'),
         ],
     ],
-
+    'stream' => [
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+        ],
+    ],
 ];

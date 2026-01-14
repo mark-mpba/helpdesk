@@ -1,0 +1,202 @@
+x-volumes-hot: &hot
+  - vendor:/var/www/html/vendor
+  - storage:/var/www/html/storage
+  - cache:/var/www/html/bootstrap/cache
+
+services:
+  laravel.test:
+    build:
+      context: .
+      dockerfile: docker/php-fpm/Dockerfile
+      target: runtime-dev
+      args:
+        # Use your macOS UID/GID so files on the bind mount are owned by you
+        # On macOS: id -u (often 501) / id -g
+        PUID: 501
+        PGID: 1000
+    container_name: laravel-php
+    working_dir: /var/www/html
+    user: "501:20"
+    volumes:
+      - ./:/var/www/html:delegated
+        *hot
+    environment:
+      PHP_OPCACHE_ENABLE: "${PHP_OPCACHE_ENABLE}"
+      PHP_OPCACHE_MEMORY: "${PHP_OPCACHE_MEMORY}"
+      PHP_FPM_MAX_CHILDREN: "${PHP_FPM_MAX_CHILDREN}"
+      XDEBUG_MODE: "${XDEBUG_MODE}"
+      QUEUE_CONNECTION: "redis"
+      VITE_HOST: "0.0.0.0"
+      VITE_PORT: "5173"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "9000"
+      - "9003"
+    networks:
+      web:
+        aliases: [ laravel-php, medidev.vm, laravel.test, api.medidev.vm, gateway ]
+    command: >
+      sh -lc '
+        set -e
+        mkdir -p bootstrap/cache storage/framework/{cache,sessions,views};
+        chown -R www-data:www-data storage bootstrap || true;
+        chmod -R ug+rwX storage bootstrap || true;
+
+        if [ ! -f vendor/autoload.php ] && [ -f composer.json ]; then
+          echo "vendor/ empty → running composer install (dev)…";
+          composer install --no-interaction --prefer-dist || true;
+        fi
+        # Start FPM (foreground) and queue worker together
+                php-fpm -F &
+                php artisan queue:work --verbose --tries=3 --timeout=90
+      '
+
+  mysql:
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile
+    container_name: laravel-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_LOG_CONSOLE: "false"
+    ports:
+      - "3306:3306"
+    volumes:
+      - dbdata:/var/lib/mysql/
+    networks: [ web ]
+  nginx:
+    image: nginx:alpine
+    container_name: laravel-nginx
+    depends_on: [ laravel.test ]
+    volumes:
+      - ./:/var/www/html:delegated
+      - ./docker/nginx/sites/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/logs:/var/log/nginx
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      web:
+        aliases:
+          - medidev.vm
+          - nginx
+          - gateway
+          - api.medidev.vm
+  node:
+    image: node:22-alpine
+    container_name: laravel-node
+    working_dir: /var/www/html
+    # Map code + keep node_modules inside a named volume (fast & no perms issues)
+    volumes:
+      - ./:/var/www/html:delegated
+      - node_modules:/var/www/html/node_modules
+      - pnpm_store:/root/.local/share/pnpm
+    # Good defaults for file watching inside Docker on macOS
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      HOST: "0.0.0.0"
+      VITE_HOST: "0.0.0.0"
+      VITE_PORT: "5173"
+      NPM_CONFIG_LOGLEVEL: "error"    # 👈 only show real errors
+      NPM_CONFIG_FUND: "false"        # 👈 suppress “127 packages are looking for funding”
+      NPM_CONFIG_AUDIT: "false"       # 👈 skip audit warnings during install
+    # Enable Core-pack so yarn/pnpm are available; install deps and run the dev server
+    # Swap the command to whatever you use: `npm run dev`, `yarn dev`, or `pnpm dev`
+    command: >
+      sh -lc "
+        set -e
+        apk add --no-cache bash >/dev/null || true
+        echo '----------------------------------------'
+        echo '🟢 Environment Info'
+        echo '----------------------------------------'
+        node -v && npm -v
+        echo '----------------------------------------'
+
+        # ✅ install npm 11.6.2 (compatible with Node 22)
+        npm install -g npm@11.6.2 && hash -r
+
+        corepack enable || true
+
+        if [ -f pnpm-lock.yaml ]; then pnpm i;
+        elif [ -f yarn.lock ]; then yarn install --frozen-lockfile;
+        elif [ -f package-lock.json ]; then npm ci || npm i;
+        else npm i; fi;
+
+        if ls vite.config.* >/dev/null 2>&1; then
+          if [ -f pnpm-lock.yaml ]; then pnpm dev --host 0.0.0.0 --port 5173;
+          elif [ -f yarn.lock ]; then yarn dev --host 0.0.0.0 --port 5173;
+          else npm run dev -- --host 0.0.0.0 --port 5173; fi;
+        else
+          tail -f /dev/null;
+        fi
+      "
+    ports:
+      - "5173:5173"   # Vite dev server
+    depends_on:
+      - laravel.test
+    networks: [ web ]
+  redis:
+    image: redis:alpine
+    container_name: laravel-redis
+    command: [ "redis-server", "--save", "", "--appendonly", "no", "--loglevel", "warning" ]
+    ports:
+      - "6379:6379"
+    networks: [ web ]
+  mailhog:
+    image: axllent/mailpit:latest
+    container_name: laravel-mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - web
+
+  sonarqube:
+    image: sonarqube:latest
+    container_name: sonarqube
+    depends_on:
+      - db
+    ports:
+      - "9001:9000"
+    networks: [ web ]
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    restart: unless-stopped
+  db:
+    image: postgres:15-alpine
+    container_name: sonarqube-db
+    networks: [ web ]
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+networks:
+  web:
+    driver: bridge
+
+volumes:
+  vendor:
+  storage:
+  cache:
+  node_modules:
+  pnpm_store:
+  dbdata:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
+  postgresql_data:

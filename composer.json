@@ -11,10 +11,11 @@
         "guzzlehttp/guzzle": "7.8.0",
         "laravel/framework": "^9.0",
         "laravel/ui": "^3.4",
+        "mailersend/laravel-driver": "^2.11",
         "mpba/laravel-archivable": "*",
         "mpba/laravel-modules": "*",
-        "mpba/laravel-tickets": "*",
-        "predis/predis": "^3.0",
+        "mpba/laravel-tickets": "dev-main",
+        "predis/predis": "^3.3",
         "spatie/laravel-medialibrary": "^10.15"
     },
     "require-dev": {
@@ -31,7 +32,10 @@
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
     },
     "extra": {
         "laravel": {
